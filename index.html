@@ -1,0 +1,547 @@
+```html
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Samurai Buah</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Ninja+Turtles&family=Shojumaru&display=swap');
+
+        :root {
+            --bg-color: #1a1a1a;
+            --wood-dark: #3e2723;
+            --wood-light: #5d4037;
+            --accent: #ffeb3b;
+        }
+
+        body, html {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            background-color: var(--bg-color);
+            background-image: radial-gradient(circle at center, #2c3e50 0%, #000000 100%);
+            font-family: 'Shojumaru', 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            touch-action: none; /* Mencegah pull-to-refresh dan scroll di mobile */
+            user-select: none;
+        }
+
+        #game-container {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        canvas {
+            display: block;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            z-index: 10;
+        }
+
+        /* Latar Belakang Kayu untuk UI */
+        .wood-panel {
+            background: linear-gradient(135deg, var(--wood-dark) 0%, var(--wood-light) 100%);
+            border: 4px solid #795548;
+            box-shadow: inset 0 0 20px rgba(0,0,0,0.8), 0 10px 30px rgba(0,0,0,0.9);
+            color: #fff;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+        }
+
+        #main-menu {
+            position: absolute;
+            z-index: 20;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.7);
+            backdrop-filter: blur(5px);
+            transition: opacity 0.5s ease;
+        }
+
+        .title {
+            font-size: 4rem;
+            color: var(--accent);
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            margin-bottom: 2rem;
+            text-align: center;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(1); text-shadow: 0 0 10px rgba(255, 235, 59, 0.5); }
+            50% { transform: scale(1.05); text-shadow: 0 0 20px rgba(255, 235, 59, 1); }
+            100% { transform: scale(1); text-shadow: 0 0 10px rgba(255, 235, 59, 0.5); }
+        }
+
+        .mode-btn {
+            background: linear-gradient(to bottom, #d32f2f, #b71c1c);
+            border: 2px solid #ffc107;
+            border-radius: 50px;
+            padding: 15px 40px;
+            margin: 10px;
+            font-size: 1.5rem;
+            font-family: inherit;
+            color: white;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+            text-transform: uppercase;
+            width: 250px;
+        }
+
+        .mode-btn:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 25px rgba(211, 47, 47, 0.8);
+            background: linear-gradient(to bottom, #f44336, #d32f2f);
+        }
+
+        .mode-btn:active {
+            transform: translateY(2px);
+        }
+
+        #hud {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            z-index: 15;
+            pointer-events: none; /* Klik tembus ke canvas */
+            opacity: 0;
+            transition: opacity 0.5s ease;
+        }
+
+        .score-container, .lives-container, .time-container {
+            font-size: 2rem;
+            color: white;
+            text-shadow: 2px 2px 4px rgba(0,0,0,1);
+            display: flex;
+            align-items: center;
+        }
+
+        .lives-container i {
+            color: #e91e63;
+            margin-left: 5px;
+        }
+
+        .life-lost {
+            color: #555 !important;
+        }
+
+        /* Layar Game Over */
+        #game-over {
+            position: absolute;
+            z-index: 30;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.85);
+            color: white;
+        }
+
+        .go-title {
+            font-size: 4rem;
+            color: #f44336;
+            margin-bottom: 1rem;
+        }
+
+        .final-score {
+            font-size: 2.5rem;
+            margin-bottom: 2rem;
+            color: var(--accent);
+        }
+
+        .combo-text {
+            position: absolute;
+            color: #ff9800;
+            font-size: 2rem;
+            font-weight: bold;
+            pointer-events: none;
+            z-index: 12;
+            animation: floatUp 1s ease-out forwards;
+            text-shadow: 0 0 10px rgba(0,0,0,0.8);
+        }
+
+        @keyframes floatUp {
+            0% { opacity: 1; transform: translateY(0) scale(1); }
+            100% { opacity: 0; transform: translateY(-50px) scale(1.5); }
+        }
+
+        /* Tombol Pause */
+        #pause-btn {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            background: none;
+            border: none;
+            color: white;
+            font-size: 2rem;
+            cursor: pointer;
+            z-index: 25;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.8);
+            display: none;
+        }
+
+        /* Layar Pause */
+        #pause-menu {
+            position: absolute;
+            z-index: 40;
+            display: none;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            width: 100%;
+            height: 100%;
+            background: rgba(0, 0, 0, 0.8);
+        }
+    </style>
+    <!-- FontAwesome untuk ikon -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+</head>
+<body>
+
+    <div id="game-container">
+        <canvas id="gameCanvas"></canvas>
+
+        <!-- Menu Utama -->
+        <div id="main-menu">
+            <div class="title">Samurai<br>Buah</div>
+            <button class="mode-btn" onclick="startGame('classic')">Klasik</button>
+            <button class="mode-btn" onclick="startGame('arcade')">Arcade</button>
+            <button class="mode-btn" onclick="startGame('zen')">Zen</button>
+            <div class="mt-8 text-gray-400 text-sm">Geser/Klik & Drag untuk memotong</div>
+        </div>
+
+        <!-- HUD (Heads Up Display) -->
+        <div id="hud">
+            <div class="score-container">
+                <i class="fas fa-star text-yellow-400 mr-2"></i> <span id="scoreVal">0</span>
+            </div>
+            <!-- Untuk Mode Klasik -->
+            <div id="lives-display" class="lives-container hidden">
+                <i class="fas fa-heart" id="life1"></i>
+                <i class="fas fa-heart" id="life2"></i>
+                <i class="fas fa-heart" id="life3"></i>
+            </div>
+            <!-- Untuk Mode Arcade/Zen -->
+            <div id="time-display" class="time-container hidden">
+                <i class="fas fa-clock text-blue-400 mr-2"></i> <span id="timeVal">60</span>
+            </div>
+        </div>
+
+        <button id="pause-btn" onclick="togglePause()"><i class="fas fa-pause"></i></button>
+
+        <!-- Layar Game Over -->
+        <div id="game-over" class="wood-panel p-10 rounded-xl m-4 max-w-md w-full">
+            <div class="go-title text-center">Selesai!</div>
+            <div class="final-score text-center">Skor: <span id="finalScoreVal">0</span></div>
+            <div class="text-center text-lg mb-6 text-gray-300" id="go-reason"></div>
+            <div class="flex flex-col gap-4">
+                <button class="mode-btn w-full m-0" onclick="restartGame()">Main Lagi</button>
+                <button class="mode-btn w-full m-0" style="background: #555;" onclick="returnToMenu()">Menu Utama</button>
+            </div>
+        </div>
+
+        <!-- Layar Pause -->
+        <div id="pause-menu" class="wood-panel p-10 rounded-xl m-4 max-w-md w-full">
+            <div class="text-4xl text-white mb-8 text-center">Jeda</div>
+            <div class="flex flex-col gap-4">
+                <button class="mode-btn w-full m-0" onclick="togglePause()">Lanjutkan</button>
+                <button class="mode-btn w-full m-0" style="background: #555;" onclick="returnToMenu()">Menu Utama</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d', { alpha: false }); // Optimasi: alpha false karena background full
+        
+        // UI Elements
+        const mainMenu = document.getElementById('main-menu');
+        const hud = document.getElementById('hud');
+        const scoreEl = document.getElementById('scoreVal');
+        const livesDisplay = document.getElementById('lives-display');
+        const timeDisplay = document.getElementById('time-display');
+        const timeVal = document.getElementById('timeVal');
+        const gameOverScreen = document.getElementById('game-over');
+        const finalScoreEl = document.getElementById('finalScoreVal');
+        const goReasonEl = document.getElementById('go-reason');
+        const pauseBtn = document.getElementById('pause-btn');
+        const pauseMenu = document.getElementById('pause-menu');
+
+        // Game State Variables
+        let gameState = 'MENU'; // MENU, PLAYING, PAUSED, GAMEOVER
+        let currentMode = ''; // classic, arcade, zen
+        let score = 0;
+        let lives = 3;
+        let timeLeft = 0;
+        let gameLoopId;
+        let timerId;
+        
+        // Lists for game objects
+        let fruits = [];
+        let particles = [];
+        let splashes = [];
+        let floatingTexts = [];
+        
+        // Blade logic
+        let isSwiping = false;
+        let swipePath = []; // Stores recent mouse/touch positions
+        const MAX_SWIPE_LENGTH = 15; // How long the trail is
+        const MIN_SWIPE_DIST = 10; // Minimum distance to register a cut
+
+        // Setup Canvas Size
+        function resizeCanvas() {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        }
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        const FRUIT_TYPES = [
+            { name: 'Apple', color: '#e74c3c', innerColor: '#f1c40f', points: 10, radius: 30, chance: 30 },
+            { name: 'Watermelon', color: '#2ecc71', innerColor: '#e74c3c', points: 15, radius: 45, chance: 20 },
+            { name: 'Orange', color: '#e67e22', innerColor: '#f39c12', points: 10, radius: 35, chance: 25 },
+            { name: 'Coconut', color: '#7f8c8d', innerColor: '#ecf0f1', points: 20, radius: 40, chance: 15 },
+            { name: 'Dragonfruit', color: '#9b59b6', innerColor: '#ecf0f1', points: 50, radius: 30, chance: 5 }, // Rare
+            { name: 'Bomb', color: '#333', innerColor: '#111', points: 0, radius: 35, chance: 0, isBomb: true } // Chance set dynamically
+        ];
+
+        class Fruit {
+            constructor() {
+                // Tentukan probabilitas munculnya bom berdasarkan mode
+                let bombChance = 0;
+                if (currentMode === 'classic') bombChance = 0.15; // 15% chance
+                if (currentMode === 'arcade') bombChance = 0.10;  // 10% chance
+                // Zen mode has 0 bomb chance
+
+                const isBombSpawn = Math.random() < bombChance;
+                
+                if (isBombSpawn) {
+                    this.type = FRUIT_TYPES.find(f => f.isBomb);
+                } else {
+                    // Weighted random for fruits
+                    let rand = Math.random() * 100;
+                    let cumulative = 0;
+                    for (let f of FRUIT_TYPES) {
+                        if (f.isBomb) continue;
+                        cumulative += f.chance;
+                        if (rand <= cumulative) {
+                            this.type = f;
+                            break;
+                        }
+                    }
+                    if(!this.type) this.type = FRUIT_TYPES[0]; // Fallback
+                }
+
+                this.x = Math.random() * (canvas.width - 100) + 50;
+                this.y = canvas.height + 50;
+                this.radius = this.type.radius;
+                
+                // Fisika lemparan
+                // Lempar ke arah tengah layar
+                const targetX = canvas.width / 2 + (Math.random() * 200 - 100);
+                this.vx = (targetX - this.x) / 60; // Velocity X
+                
+                // Kecepatan Y bervariasi tergantung mode, tapi umumnya harus cukup untuk mencapai atas layar
+                const minVy = -15;
+                const maxVy = -22;
+                this.vy = Math.random() * (maxVy - minVy) + minVy; 
+                
+                this.gravity = 0.4;
+                this.rotation = 0;
+                this.rotationSpeed = (Math.random() - 0.5) * 0.2;
+                this.isCut = false;
+                
+                // Untuk animasi terbelah
+                this.halves = []; 
+                this.fuseTimer = 0; // Untuk animasi bom
+            }
+
+            update() {
+                if (this.isCut) {
+                    // Update belahan buah
+                    this.halves.forEach(half => {
+                        half.x += half.vx;
+                        half.y += half.vy;
+                        half.vy += this.gravity;
+                        half.rotation += half.rotationSpeed;
+                    });
+                    return;
+                }
+
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += this.gravity;
+                this.rotation += this.rotationSpeed;
+
+                if (this.type.isBomb) {
+                    this.fuseTimer += 0.1;
+                }
+            }
+
+            draw() {
+                if (this.isCut) {
+                    // Gambar belahan
+                    this.halves.forEach(half => {
+                        ctx.save();
+                        ctx.translate(half.x, half.y);
+                        ctx.rotate(half.rotation);
+                        
+                        // Gambar setengah lingkaran
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius, 0, Math.PI, false);
+                        ctx.fillStyle = this.type.color;
+                        ctx.fill();
+                        
+                        // Bagian dalam
+                        ctx.beginPath();
+                        ctx.arc(0, 0, this.radius - 5, 0, Math.PI, false);
+                        ctx.fillStyle = this.type.innerColor;
+                        ctx.fill();
+                        
+                        ctx.restore();
+                    });
+                    return;
+                }
+
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+
+                if (this.type.isBomb) {
+                    // Gambar Bom
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = '#222';
+                    ctx.fill();
+                    
+                    // Highlight bom
+                    ctx.beginPath();
+                    ctx.arc(-10, -10, 8, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.2)';
+                    ctx.fill();
+
+                    // Sumbu
+                    ctx.beginPath();
+                    ctx.moveTo(0, -this.radius);
+                    ctx.quadraticCurveTo(20, -this.radius - 20, 30, -this.radius - 10);
+                    ctx.lineWidth = 4;
+                    ctx.strokeStyle = '#8B4513';
+                    ctx.stroke();
+
+                    // Percikan sumbu
+                    if (Math.sin(this.fuseTimer) > 0) {
+                        ctx.beginPath();
+                        ctx.arc(30, -this.radius - 10, 6, 0, Math.PI * 2);
+                        ctx.fillStyle = '#ff9800';
+                        ctx.fill();
+                        ctx.beginPath();
+                        ctx.arc(30, -this.radius - 10, 3, 0, Math.PI * 2);
+                        ctx.fillStyle = '#ffff00';
+                        ctx.fill();
+                    }
+
+                } else {
+                    // Gambar Buah (Bulat sederhana untuk kinerja, tapi dengan detail warna)
+                    ctx.beginPath();
+                    ctx.arc(0, 0, this.radius, 0, Math.PI * 2);
+                    ctx.fillStyle = this.type.color;
+                    ctx.fill();
+
+                    // Tekstur/Detail sederhana
+                    ctx.beginPath();
+                    ctx.arc(-this.radius * 0.3, -this.radius * 0.3, this.radius * 0.2, 0, Math.PI * 2);
+                    ctx.fillStyle = 'rgba(255,255,255,0.3)';
+                    ctx.fill();
+                }
+
+                ctx.restore();
+            }
+
+            cut(cutAngle) {
+                this.isCut = true;
+                
+                // Buat dua belahan
+                for (let i = 0; i < 2; i++) {
+                    const dir = i === 0 ? 1 : -1;
+                    // Sudut tolakan belahan tegak lurus dengan sudut potongan
+                    const pushAngle = cutAngle + (Math.PI / 2) * dir;
+                    const pushForce = 5;
+
+                    this.halves.push({
+                        x: this.x,
+                        y: this.y,
+                        vx: this.vx + Math.cos(pushAngle) * pushForce,
+                        vy: this.vy + Math.sin(pushAngle) * pushForce,
+                        rotation: this.rotation,
+                        rotationSpeed: this.rotationSpeed + (dir * 0.2)
+                    });
+                }
+
+                // Efek partikel
+                if (!this.type.isBomb) {
+                    createParticles(this.x, this.y, this.type.color);
+                    createSplash(this.x, this.y, this.type.color);
+                } else {
+                    createExplosion(this.x, this.y);
+                }
+            }
+        }
+
+        class Particle {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.vx = (Math.random() - 0.5) * 10;
+                this.vy = (Math.random() - 0.5) * 10;
+                this.color = color;
+                this.radius = Math.random() * 4 + 2;
+                this.life = 1;
+                this.decay = Math.random() * 0.02 + 0.02;
+            }
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+                this.vy += 0.2; // gravity
+                this.life -= this.decay;
+            }
+            draw() {
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fillStyle = `rgba(${hexToRgb(this.color)}, ${this.life})`;
+                ctx.fill();
+            }
+        }
+
+        class Splash {
+            constructor(x, y, color) {
+                this.x = x;
+                this.y = y;
+                this.color = color;
+                this.radius = Math.random() * 20 + 10;
+                this.life = 1;
+                // Splashes memudar sangat lambat untuk meninggalkan jejak
+                this.decay = 0.005;
+                // Splashes juga tergambar sedikit acak
+                this.drops = [];
+                for(let i
